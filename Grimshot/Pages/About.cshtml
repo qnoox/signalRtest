@@ -1,0 +1,154 @@
+﻿@page
+@model AboutModel
+@{
+	ViewData["Title"] = "About";
+}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<script src="~/lib/signalr/signalr.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+	<title>GrimShot</title>
+	<style>
+		.shape {
+			width: 100px;
+			height: 100px;
+			background-color: red;
+			cursor: move;
+		}
+	</style>
+</head>
+<body>
+
+	<div id="game"></div>
+	<script type="text/javascript" src="https://rawgithub.com/craftyjs/Crafty/release/dist/crafty-min.js"></script>
+
+	<!--<div id="shape"></div>-->
+	<script>
+
+		Crafty.init();
+
+		//var $shape = $("#shape");
+		//$shape.addClass("shape");
+
+
+
+		var connection = new signalR.HubConnectionBuilder()
+			.withUrl('/GameHub')
+			.build();
+
+
+		console.log(connection);
+
+		//$shape = $('#' + id);
+		//var $shape = $("#shape");
+
+		//var $shape = $(".shape").on("DOMNodeInserted", ".ChildClass", function () { $(this).draggable(); });
+
+		//var $id;
+
+		//oldstuff
+		var x;
+		var y;
+
+		function MakePlayer(id) {
+			//var sprite = document.createElement("div");
+			//sprite.id = id;
+			//sprite.className = "shape";
+			//$shape = $('#' + id);
+			//document.body.appendChild(sprite);
+
+			//we make the a new player!
+			var pl = id;
+			console.log(pl);
+			window[pl] = Crafty.e("2D, Canvas, Color, Keyboard").attr({ x: 10, y: 10, w: 30, h: 30 });
+			window[pl].color("red");
+
+			//give it name
+			window[pl].setName(pl);
+
+			//get the name
+			var name = window[pl].getName();
+
+			//when created a user send him to walk
+			walk(name, pl);
+		}
+
+		function walk(name, pl) {
+
+			window[pl].bind('KeyDown', function (e) {
+
+				//m(x, y);
+				//console.log(y);
+				//console.log(x);
+
+				if (e.key == Crafty.keys.LEFT_ARROW) {
+					this.x = window[pl].x - 100;
+				} else if (e.key == Crafty.keys.RIGHT_ARROW) {
+					this.x = window[pl].x + 100;
+				} else if (e.key == Crafty.keys.UP_ARROW) {
+					this.y = window[pl].y - 100;
+				} else if (e.key == Crafty.keys.DOWN_ARROW) {
+					this.y = window[pl].y + 100;
+				}
+
+				window[pl].bind("Move", function (oldPosition) {
+					console.log(this.x, this.y);
+					x = window[pl].x;
+					y = window[pl].y;
+
+					//lazy convert :)
+					var id = pl;
+
+					//this is #fail at the moment as it's function not defined!.
+					updatePlayerPos(oldPosition, x, y, id);
+
+				});
+			});
+		}
+
+
+		function updatePlayerPos(oldPosition, x, y, id) {
+
+			update(oldPosition, x, y, id);
+		}
+		
+		//has moved and is done moving.
+		connection.on('shapeMoved', function (x, y, id) {
+			var pl = id;
+		
+			window[pl].attr({ x: x, y: y });
+			console.log("move");
+		});
+		
+
+
+
+		//send is an all in all update to all if an action has been made this runes everytime that happens.
+		connection.on('Send', function (msg, id) {
+			console.log(msg);
+
+			MakePlayer(id);
+		});
+
+		//this is what is done each new user connects
+		//so here we need to update where every player is at the moment so when a new user connects he can see the other players
+		//location/shape
+		connection.start().then(
+			//this is not working anymore after change due to void etc..
+			function update(oldPosition, x, y, id) {
+
+				//if user has walked we need to update this!
+				if (oldPosition.x && oldPosition.y != x && y) {
+					console.log(oldPosition);
+					connection.invoke("MoveShape", x, y, id || 0)
+				}
+			}
+			
+		);
+
+	</script>
+</body>
+</html>
